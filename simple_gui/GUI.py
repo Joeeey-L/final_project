@@ -197,11 +197,11 @@ class GUI:
         #add a game button
         self.snakeButton = Button(self.Window,
                          text="Play Snake",
-                         font="Helvetica 10 bold",
+                         font="Helvetica 9 bold",
                          bg="#556677",
                          fg="white",
                          command=self.open_snake_game)
-        self.snakeButton.place(relx=0.48, rely=0.018, relheight=0.045, relwidth=0.15)
+        self.snakeButton.place(relx=0.02, rely=0.018, relheight=0.045, relwidth=0.15)
 
           
         # create a Send Button

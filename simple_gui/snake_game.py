@@ -160,8 +160,8 @@ class Snake:
 # ------------------------
 class Food:
     def __init__(self, canvas):
-        x = random.randint(0, (WIDTH / SPACE_SIZE) - 1) * SPACE_SIZE
-        y = random.randint(0, (HEIGHT / SPACE_SIZE) - 1) * SPACE_SIZE
+        x = random.randint(0, (WIDTH // SPACE_SIZE) - 1) * SPACE_SIZE
+        y = random.randint(0, (HEIGHT // SPACE_SIZE) - 1) * SPACE_SIZE
         self.coordinates = [x, y]
 
         canvas.create_oval(
