@@ -245,9 +245,7 @@ class GUI:
         if len(msg) == 0:
             return
 
-    #open game method    
-    def open_snake_game(self):
-        SnakeGame(self.Window)
+    
 
 
     # Add a ajustment to see each other's message
@@ -264,9 +262,12 @@ class GUI:
             self.textCons.insert(END, "Bot: " + bot_reply + "\n")
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
-
             return
         self.my_msg = msg
+        
+    #open game method    
+    def open_snake_game(self):
+        SnakeGame(self.Window)
     def proc(self):
         # print(self.msg)
         while True:
