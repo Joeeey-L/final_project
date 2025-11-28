@@ -29,6 +29,7 @@ class Server:
         self.all_sockets.append(self.server)
         #initialize past chat indices
         self.indices={}
+        self.leaderboard = {}
         # sonnet
         # self.sonnet_f = open('AllSonnets.txt.idx', 'rb')
         # self.sonnet = pkl.load(self.sonnet_f)
@@ -163,6 +164,27 @@ class Server:
                 search_rslt = '\n'.join([x[-1] for x in self.indices[from_name].search(term)])
                 print('server side search: ' + search_rslt)
                 mysend(from_sock, json.dumps({"action":"search", "results":search_rslt}))
+#==============================================================================
+#             game score update (single player)
+#==============================================================================
+            elif msg["action"] == "game_score":
+                from_name = self.logged_sock2name[from_sock]
+                score = msg["score"]
+
+                # update leaderboard
+                old_score = self.leaderboard.get(from_name, 0)
+                if score > old_score:
+                    self.leaderboard[from_name] = score
+
+                # sort leaderboard
+                sorted_board = sorted(self.leaderboard.items(), key=lambda x: x[1], reverse=True)
+
+                # broadcast the updated leaderboard to all clients
+                for s in self.logged_name2sock.values():
+                    mysend(s, json.dumps({
+                        "action": "leaderboard",
+                        "results": sorted_board
+                    }))   
 #==============================================================================
 # the "from" guy has had enough (talking to "to")!
 #==============================================================================

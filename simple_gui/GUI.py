@@ -15,6 +15,7 @@ from tkinter import ttk
 from chat_utils import *
 import json
 from chatbot import ChatBot
+from snake_game import SnakeGame
 
 
 # GUI class for the chat
@@ -192,6 +193,15 @@ class GUI:
         # 放在右上角
         self.buttonBot.place(relx=0.82, rely=0.018, 
                      relheight=0.045, relwidth=0.15)
+        
+        #add a game button
+        self.snakeButton = Button(self.Window,
+                         text="Play Snake",
+                         font="Helvetica 10 bold",
+                         bg="#556677",
+                         fg="white",
+                         command=self.open_snake_game)
+        self.snakeButton.place(relx=0.48, rely=0.018, relheight=0.045, relwidth=0.15)
 
           
         # create a Send Button
@@ -234,6 +244,11 @@ class GUI:
     def sendButton(self, msg):
         if len(msg) == 0:
             return
+
+    #open game method    
+    def open_snake_game(self):
+        SnakeGame(self.Window)
+
 
     # Add a ajustment to see each other's message
         self.textCons.config(state=NORMAL)
