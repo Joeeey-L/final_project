@@ -16,6 +16,7 @@ from chat_utils import *
 import json
 from chatbot import ChatBot
 from snake_game import SnakeGame
+import re
 
 
 # GUI class for the chat
@@ -241,6 +242,21 @@ class GUI:
         self.textCons.config(state = DISABLED)
   
     # function to basically start the thread for sending messages
+    
+    def check_bot_mention(self, msg):
+        """
+        检查消息中是否提及bot
+        支持 @bot, @chatbot, @Bot, @ChatBot 等格式
+        """
+        pattern = r'@(bot|chatbot)'
+        return re.search(pattern, msg.lower()) is not None  
+    def remove_bot_mention(self, msg):
+        """
+        移除消息中的@bot标记，获取实际要处理的内容
+        """
+        pattern = r'@(bot|chatbot)\s*'
+        return re.sub(pattern, '', msg, flags=re.IGNORECASE).strip()    
+
     def sendButton(self, msg):
         if len(msg) == 0:
             return
@@ -252,22 +268,53 @@ class GUI:
         self.textCons.config(state=NORMAL)
         self.textCons.insert(END, "You: " + msg + "\n")
         self.textCons.config(state=DISABLED)
-        self.textCons.see(END)
-        
+        self.textCons.see(END)   
         self.entryMsg.delete(0, END)
+
+        if self.check_bot_mention(msg):
+            # 提取实际消息内容（去掉@bot）
+            self.my_msg=msg
+            actual_msg = self.remove_bot_mention(msg)
+            
+            # 获取bot回复
+            bot_reply = self.chatbot.get_response(actual_msg)
+            
+            # 显示bot回复（所有人可见）
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"🤖 Bot: {bot_reply}\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+            
+            # 将bot回复广播给所有人
+            # 构造特殊格式的消息，让其他客户端也能显示bot回复
+            def send_bot_reply():
+                import time
+                time.sleep(0.1)  # 短暂延迟，确保原始消息先处理
+                broadcast_msg = f"🤖 Bot: {bot_reply}"
+                # 通过正常流程发送bot回复
+                temp_msg = self.my_msg
+                self.my_msg = broadcast_msg
+                # 等待发送
+                time.sleep(0.05)
+                self.my_msg = temp_msg if temp_msg != msg else ""
+            
+            bot_thread = threading.Thread(target=send_bot_reply)
+            bot_thread.daemon = True
+            bot_thread.start()
+            return
+         
         if self.chatbot_mode:
             bot_reply = self.chatbot.get_response(msg)
-
             self.textCons.config(state=NORMAL)
             self.textCons.insert(END, "Bot: " + bot_reply + "\n")
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
             return
-        self.my_msg = msg
-        
+        self.my_msg = msg      
     #open game method    
     def open_snake_game(self):
         SnakeGame(self.Window)
+
     def proc(self):
         # print(self.msg)
         while True:
