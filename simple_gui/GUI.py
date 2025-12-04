@@ -16,6 +16,7 @@ from chat_utils import *
 import json
 from chatbot import ChatBot
 from snake_game import SnakeGame
+from sentiment_tools import analyze_sentiment
 import re
 
 
@@ -34,7 +35,7 @@ class GUI:
         self.system_msg = ""
         self.chatbot = ChatBot(api_key="sk-59aea2a31153449891fb6cd2596993d0") #add chatbot
         self.chatbot_mode = False
-
+        self.sentiment_mode = False
 
     def login(self):
         # login window
@@ -226,6 +227,15 @@ class GUI:
                         command=self.open_personality_window)
         self.personalityButton.place(relx=0.65, rely=0.018, 
                      relheight=0.045, relwidth=0.15)
+        
+        self.buttonSentiment = Button(self.Window,
+                         text="😐 OFF",
+                         font="Helvetica 9 bold",
+                         bg="#664477",
+                         fg="white",
+                         command=self.toggle_sentiment)
+        self.buttonSentiment.place(relx=0.18, rely=0.018, 
+                                   relheight=0.045, relwidth=0.15)
           
         self.textCons.config(cursor = "arrow")
           
@@ -242,6 +252,19 @@ class GUI:
         self.textCons.config(state = DISABLED)
   
     # function to basically start the thread for sending messages
+    # 新增：切换情感分析功能
+    def toggle_sentiment(self):
+        self.sentiment_mode = not self.sentiment_mode
+        self.textCons.config(state=NORMAL)
+        if self.sentiment_mode:
+            self.textCons.insert(END, "【Sentiment Analysis: ON - Analyzing others' messages】\n\n")
+            self.buttonSentiment.config(bg="#8B4789", text="😊 ON")
+        else:
+            self.textCons.insert(END, "【Sentiment Analysis: OFF】\n\n")
+            self.buttonSentiment.config(bg="#664477", text="😐 OFF")
+        self.textCons.config(state=DISABLED)
+        self.textCons.see(END)
+    
     
     def check_bot_mention(self, msg):
         """
@@ -261,10 +284,7 @@ class GUI:
         if len(msg) == 0:
             return
 
-    
-
-
-    # Add a ajustment to see each other's message
+        # 显示自己的消息（带情感分析）
         self.textCons.config(state=NORMAL)
         self.textCons.insert(END, "You: " + msg + "\n")
         self.textCons.config(state=DISABLED)
@@ -272,16 +292,14 @@ class GUI:
         self.entryMsg.delete(0, END)
 
         if self.check_bot_mention(msg):
-            # 提取实际消息内容（去掉@bot）
-            self.my_msg=msg
+            self.my_msg = msg
             actual_msg = self.remove_bot_mention(msg)
             
             # 获取bot回复
             bot_reply = self.chatbot.get_response(actual_msg)
             
-            # 显示bot回复（所有人可见）
             self.textCons.config(state=NORMAL)
-            self.textCons.insert(END, f"🤖 Bot: {bot_reply}\n")
+            self.textCons.insert(END, "🤖 Bot: " + bot_reply + "\n")
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
             
@@ -310,7 +328,7 @@ class GUI:
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
             return
-        self.my_msg = msg      
+        self.my_msg = msg     
     #open game method    
     def open_snake_game(self):
         SnakeGame(self.Window)
@@ -327,12 +345,42 @@ class GUI:
                 new_msg = self.sm.proc(self.my_msg, peer_msg)
                 self.my_msg = ""
 
+                # 处理接收到的消息 - 只对别人的消息进行情感分析
+                if new_msg.strip() and self.sentiment_mode:
+                    if not new_msg.startswith("【"):  # 跳过系统消息
+                        lines = new_msg.split('\n')
+                        processed = []
+
+                        for line in lines:
+                            line = line.strip()
+                            if not line:
+                                continue
+
+                            # ---- 方括号格式，如 [A]你好呀 ----
+                            if line.startswith("[") and "]" in line:
+                                end = line.find("]")
+                                sender = line[1:end]
+                                message = line[end+1:].strip()
+
+                                # 只分析别人，不分析系统，不分析自己
+                                if sender != self.name and sender != "🤖":
+                                    label, emoji = analyze_sentiment(message)
+                                    processed.append(f"[{sender}]{message} [{label} {emoji}]")
+                                else:
+                                    processed.append(line)
+                            else:
+                                processed.append(line)
+
+                        new_msg = "\n".join(processed)
+
+
+
                 self.textCons.config(state=NORMAL)
                 self.textCons.insert(END, new_msg + "\n\n")
                 self.textCons.config(state=DISABLED)
                 self.textCons.see(END)
 
-                # ★★★ fix: 清空 system_msg（老师要求的修复）
+                # ★★★ fix: 清空 system_msg
                 self.system_msg = ""
 
 
@@ -424,6 +472,8 @@ class GUI:
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
             window.destroy()
+    
+
 
 # create a GUI class object
 if __name__ == "__main__": 
