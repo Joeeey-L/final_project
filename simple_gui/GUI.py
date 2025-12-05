@@ -17,6 +17,8 @@ import json
 from chatbot import ChatBot
 from snake_game import SnakeGame
 from sentiment_tools import analyze_sentiment
+from typing import List
+from nlp_tools import extract_keywords_yake, summarize_with_sumy
 import re
 
 
@@ -36,6 +38,8 @@ class GUI:
         self.chatbot = ChatBot(api_key="sk-59aea2a31153449891fb6cd2596993d0") #add chatbot
         self.chatbot_mode = False
         self.sentiment_mode = False
+        self.chat_history = []
+
 
     def login(self):
         # login window
@@ -284,12 +288,54 @@ class GUI:
         if len(msg) == 0:
             return
 
-        # 显示自己的消息（带情感分析）
+        
         self.textCons.config(state=NORMAL)
         self.textCons.insert(END, "You: " + msg + "\n")
+        # ------------ Add own message to chat history ------------
+# 过滤命令，例如 /summary /keywords
+        if not msg.startswith("/"):
+            clean_msg = re.sub(r"\[[^\]]+\]$", "", msg).strip()
+            if clean_msg:
+                self.chat_history.append(clean_msg)
+# ---------------------------------------------------------
+
         self.textCons.config(state=DISABLED)
         self.textCons.see(END)   
         self.entryMsg.delete(0, END)
+
+        # ---------- NLP Commands ----------
+        if msg.strip() == "/keywords":
+            # 原始关键词
+            result = extract_keywords_yake(self.chat_history, top_k=10)
+
+            # 要过滤掉的垃圾关键词
+            ban_list = {
+                "Request", "requested", "Connect", "connected", "connecting",
+                "chat", "you", "are", "with", "from", "to", "the"
+            }
+
+            # 过滤垃圾词（lowercase 匹配）
+            cleaned = [w for w in result if w.lower() not in ban_list]
+
+            # 如果删太多，至少保留前几个
+            cleaned = cleaned[:5] if len(cleaned) > 0 else result[:5]
+
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"【Keywords】 {', '.join(cleaned)}\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+            return
+
+        if msg.strip() == "/summary":
+            result = summarize_with_sumy(self.chat_history, sentences_count=3)
+            summary_text = "\n".join(result)
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"【Summary】\n{summary_text}\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+            return
+# ----------------------------------
+
 
         if self.check_bot_mention(msg):
             self.my_msg = msg
@@ -376,11 +422,39 @@ class GUI:
 
 
                 self.textCons.config(state=NORMAL)
+                # 记录聊天记录（只存纯文本）
+                # ------------ Clean chat history logging ------------
+                clean_lines = []
+
+                for line in new_msg.split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # 例子: [A]你好呀 → 去掉 sender，只留消息
+                    if line.startswith("[") and "]" in line:
+                        end = line.find("]")
+                        msg = line[end+1:].strip()
+
+                        # 去掉可能的 sentiment 标签 "[Positive 😊]"
+                        msg = re.sub(r"\[[^\]]+\]$", "", msg).strip()
+
+                        # 只要 msg 有内容就记录
+                        if msg:
+                            clean_lines.append(msg)
+                    else:
+                        # 对于其他消息（例如系统消息），不处理
+                        clean_lines.append(line)
+
+                self.chat_history.extend(clean_lines)
+        # ------------ END Clean chat history logging ------------
+
+
                 self.textCons.insert(END, new_msg + "\n\n")
                 self.textCons.config(state=DISABLED)
                 self.textCons.see(END)
 
-                # ★★★ fix: 清空 system_msg
+                        # ★★★ fix: 清空 system_msg
                 self.system_msg = ""
 
 
