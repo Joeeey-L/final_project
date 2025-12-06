@@ -13,13 +13,14 @@ BG_COLOR = "#000000"
 
 
 class SnakeGame:
-    def __init__(self, master):
+    def __init__(self, master, send_score_callback=None):
         """
         master: 父窗口，通常是 GUI.Window
         """
         self.gamewin = Toplevel(master)
         self.gamewin.title("Snake Game")
         self.gamewin.resizable(False, False)
+        self.send_score_callback = send_score_callback
 
         # --- game variables ---
         self.score = 0
@@ -137,6 +138,9 @@ class SnakeGame:
             fill="red",
             font=("consolas", 50)
         )
+
+        if self.send_score_callback:
+            self.send_score_callback(self.score)
 
 
 # ------------------------

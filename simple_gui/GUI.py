@@ -11,6 +11,7 @@ import threading
 import select
 from tkinter import *
 from tkinter import font
+import tkinter as tk
 from tkinter import ttk
 from chat_utils import *
 import json
@@ -20,6 +21,7 @@ from sentiment_tools import analyze_sentiment
 from typing import List
 from nlp_tools import extract_keywords_yake, summarize_with_sumy
 import re
+import time
 
 
 # GUI class for the chat
@@ -39,7 +41,6 @@ class GUI:
         self.chatbot_mode = False
         self.sentiment_mode = False
         self.chat_history = []
-
 
     def login(self):
         # login window
@@ -209,6 +210,19 @@ class GUI:
                          command=self.open_snake_game)
         self.snakeButton.place(relx=0.02, rely=0.018, relheight=0.045, relwidth=0.15)
 
+        self.is_requesting_leaderboard = False
+        self.leaderboard_data = []
+
+        self.rankButton = Button(
+            self.Window,
+            text="Ranking",
+            font="Helvetica 9 bold",
+            bg="#556677",
+            fg="white",
+            command=self.open_leaderboard_window
+        )
+        self.rankButton.place(relx=0.18, rely=0.018, relheight=0.045, relwidth=0.12)
+
           
         # create a Send Button
         self.buttonMsg = Button(self.labelBottom,
@@ -238,8 +252,8 @@ class GUI:
                          bg="#664477",
                          fg="white",
                          command=self.toggle_sentiment)
-        self.buttonSentiment.place(relx=0.18, rely=0.018, 
-                                   relheight=0.045, relwidth=0.15)
+        self.buttonSentiment.place(relx=0.32, rely=0.018, 
+                                   relheight=0.045, relwidth=0.1)
           
         self.textCons.config(cursor = "arrow")
           
@@ -375,9 +389,222 @@ class GUI:
             self.textCons.see(END)
             return
         self.my_msg = msg     
+    
     #open game method    
     def open_snake_game(self):
-        SnakeGame(self.Window)
+        SnakeGame(self.Window, self.on_player_score)
+
+    def on_player_score(self, score):
+        """
+        将玩家的游戏分数发送到服务器
+        """
+        try:
+            print(f"Player {self.name} scored: {score}")
+            
+            # 构造游戏分数消息
+            score_msg = json.dumps({
+                "action": "game_score",
+                "score": score,
+                "player": self.name  # 添加玩家名称
+            })
+            
+            # 发送到服务器
+            self.send(score_msg)
+            
+            # 在聊天窗口显示本地提示
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"【Game】You scored {score} points in Snake Game!\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+            
+        except Exception as e:
+            print(f"Error sending score to server: {e}")
+            # 如果发送失败，至少显示本地消息
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"【Game】You scored {score} points! (Not saved to server)\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+        self.send(score_msg) 
+
+    def request_leaderboard(self):
+        self.client.send("GET_SNAKE_LEADERBOARD")
+        data = self.client.receive()   # 或 client.sock.recv()
+
+        # 转成 Python 对象
+        import json
+        leaderboard = json.loads(data)
+
+        return leaderboard   
+
+   
+    def open_leaderboard_window(self):
+        """
+        直接打开排行榜窗口，使用本地存储的数据
+        """
+        try:
+            # 如果本地有数据，直接显示
+            if hasattr(self, 'leaderboard_data') and self.leaderboard_data:
+                self.show_leaderboard(self.leaderboard_data)
+            else:
+                # 如果没有数据，显示空排行榜并请求数据
+                self.show_leaderboard([])
+                # 同时请求最新数据
+                leaderboard_msg = json.dumps({"action": "get_leaderboard"})
+                self.send(leaderboard_msg)
+            
+            # 无论是否有数据，都显示提示
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, "【Ranking】Opening leaderboard...\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+            
+        except Exception as e:
+            print(f"Error opening leaderboard: {e}")
+            self.textCons.config(state=NORMAL)
+            self.textCons.insert(END, f"【Error】Failed to open leaderboard: {str(e)}\n\n")
+            self.textCons.config(state=DISABLED)
+            self.textCons.see(END)
+    
+    def show_leaderboard(self, leaderboard_data):
+        """显示排行榜窗口"""
+        leaderboard_win = Toplevel(self.Window)
+        leaderboard_win.title("Snake Game Leaderboard 🐍")
+        leaderboard_win.geometry("400x500")
+        leaderboard_win.configure(bg="#17202A")
+        leaderboard_win.resizable(False, False)
+        
+        # 标题
+        title_label = Label(
+            leaderboard_win,
+            text="🐍 Snake Game Ranking 🐍",
+            font=("Helvetica", 18, "bold"),
+            bg="#17202A",
+            fg="#4CAF50"
+        )
+        title_label.pack(pady=15)
+        
+        # 创建框架用于显示排行榜
+        frame = Frame(leaderboard_win, bg="#2C3E50")
+        frame.pack(pady=10, padx=20, fill=BOTH, expand=True)
+        
+        # 表头
+        header_frame = Frame(frame, bg="#34495E")
+        header_frame.pack(fill=X)
+        
+        headers = ["Rank", "Player", "Score", "Trophy"]
+        for i, header in enumerate(headers):
+            label = Label(
+                header_frame,
+                text=header,
+                font=("Helvetica", 12, "bold"),
+                bg="#34495E",
+                fg="white",
+                width=8 if i != 1 else 10
+            )
+            label.grid(row=0, column=i, padx=0, pady=5, sticky="ew")
+        
+        # 显示排行榜数据
+        if not leaderboard_data:
+            no_data_label = Label(
+                frame,
+                text="No game records yet!\nPlay the Snake Game to get on the leaderboard!",
+                font=("Helvetica", 11),
+                bg="#2C3E50",
+                fg="#BDC3C7",
+                justify=CENTER
+            )
+            no_data_label.pack(pady=50)
+        else:
+            # 显示前10名
+            for idx, (player, score) in enumerate(leaderboard_data[:10], 1):
+                row_frame = Frame(frame, bg="#2C3E50" if idx % 2 == 1 else "#34495E")
+                row_frame.pack(fill=X, pady=2)
+                
+                # 排名
+                rank_label = Label(
+                    row_frame,
+                    text=str(idx),
+                    font=("Helvetica", 11, "bold"),
+                    bg=row_frame["bg"],
+                    fg="white",
+                    width=8
+                )
+                rank_label.grid(row=0, column=0, padx=2)
+                
+                # 玩家名称
+                player_label = Label(
+                    row_frame,
+                    text=player[:15],  # 限制长度
+                    font=("Helvetica", 11),
+                    bg=row_frame["bg"],
+                    fg="#3498DB",
+                    width=15
+                )
+                player_label.grid(row=0, column=1, padx=2)
+                
+                # 分数
+                score_label = Label(
+                    row_frame,
+                    text=str(score),
+                    font=("Helvetica", 11, "bold"),
+                    bg=row_frame["bg"],
+                    fg="#E74C3C",
+                    width=8
+                )
+                score_label.grid(row=0, column=2, padx=2)
+                
+                # 奖杯图标
+                trophy = "🏆" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+                trophy_label = Label(
+                    row_frame,
+                    text=trophy,
+                    font=("Helvetica", 12),
+                    bg=row_frame["bg"],
+                    fg="gold" if idx <= 3 else "silver",
+                    width=8
+                )
+                trophy_label.grid(row=0, column=3, padx=2)
+        
+        # 更新时间
+        update_label = Label(
+            leaderboard_win,
+            text=f"Updated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            font=("Helvetica", 9),
+            bg="#17202A",
+            fg="#7F8C8D"
+        )
+        update_label.pack(pady=5)
+        
+        # 刷新按钮
+        refresh_button = Button(
+            leaderboard_win,
+            text="🔄 Refresh",
+            font=("Helvetica", 10, "bold"),
+            bg="#3498DB",
+            fg="white",
+            command=lambda: self.refresh_leaderboard(leaderboard_win)
+        )
+        refresh_button.pack(pady=10, ipadx=20, ipady=5)
+        
+        # 关闭按钮
+        close_button = Button(
+            leaderboard_win,
+            text="Close",
+            font=("Helvetica", 10),
+            bg="#E74C3C",
+            fg="white",
+            command=leaderboard_win.destroy
+        )
+        close_button.pack(pady=5, ipadx=30, ipady=3)    
+
+    def refresh_leaderboard(self, window=None):
+        """刷新排行榜数据"""
+        if window:
+            window.destroy()
+        # 重新请求排行榜数据
+        leaderboard_msg = json.dumps({"action": "get_leaderboard"})
+        self.send(leaderboard_msg)
+
 
     def proc(self):
         # print(self.msg)
@@ -387,6 +614,25 @@ class GUI:
             # print(self.msg)
             if self.socket in read:
                 peer_msg = self.recv()
+
+            if len(peer_msg) > 0:
+                try:
+                    msg_json = json.loads(peer_msg)
+                    
+                    if msg_json.get("action") == "leaderboard":
+                        leaderboard_data = msg_json.get("results", [])
+                        # 更新本地存储的排行榜数据
+                        self.leaderboard_data = leaderboard_data
+                        
+                        # 可选：如果排行榜窗口已经打开，则更新其内容
+                        if hasattr(self, 'current_leaderboard_window') and self.current_leaderboard_window.winfo_exists():
+                            self.update_leaderboard_content(leaderboard_data)
+                        
+                        continue  # 这是系统消息，不显示在聊天框
+
+                except json.JSONDecodeError:
+                    pass  # 不是JSON格式的消息，继续正常处理
+            
             if len(self.my_msg) > 0 or len(peer_msg) > 0:
                 new_msg = self.sm.proc(self.my_msg, peer_msg)
                 self.my_msg = ""

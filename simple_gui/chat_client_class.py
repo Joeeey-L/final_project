@@ -33,3 +33,5 @@ class Client:
         self.gui.run()
         print("gui is off")
         self.quit()
+
+print("connecting to server…")

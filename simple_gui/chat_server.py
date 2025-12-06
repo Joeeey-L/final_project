@@ -35,6 +35,7 @@ class Server:
         # self.sonnet = pkl.load(self.sonnet_f)
         # self.sonnet_f.close()
         self.sonnet = indexer.PIndex("AllSonnets.txt")
+        self.leaderboard = {}
     def new_client(self, sock):
         #add to all sockets and to new clients
         print('new client...')
@@ -116,6 +117,20 @@ class Server:
                 else:
                     msg = json.dumps({"action":"connect", "status":"no-user"})
                 mysend(from_sock, msg)
+#==============================================================================
+# handle leaderboard request
+#==============================================================================
+            elif msg["action"] == "get_leaderboard":
+                from_name = self.logged_sock2name[from_sock]
+                
+                # 排序排行榜（按分数降序）
+                sorted_board = sorted(self.leaderboard.items(), key=lambda x: x[1], reverse=True)
+                
+                # 发送给请求的客户端
+                mysend(from_sock, json.dumps({
+                    "action": "leaderboard",
+                    "results": sorted_board
+                }))
 #==============================================================================
 # handle messeage exchange: one peer for now. will need multicast later
 #==============================================================================
