@@ -189,7 +189,7 @@ class GUI:
                                relheight = 0.06,
                                relwidth = 0.09)
         
-        # 在 layout 方法中
+        # in the layout method
         self.buttonBot = Button(self.Window, 
                 text="Bot: OFF",  # 初始状态为关闭
                 font="Helvetica 10 bold",
@@ -197,7 +197,7 @@ class GUI:
                 fg="white",
                 command=self.toggle_chatbot)
 
-        # 放在右上角
+        # put this button at the top-right corner
         self.buttonBot.place(relx=0.82, rely=0.018, 
                      relheight=0.045, relwidth=0.15)
         
@@ -270,7 +270,7 @@ class GUI:
         self.textCons.config(state = DISABLED)
   
     # function to basically start the thread for sending messages
-    # 新增：切换情感分析功能
+    # New Feature: Emotion Analysis function
     def toggle_sentiment(self):
         self.sentiment_mode = not self.sentiment_mode
         self.textCons.config(state=NORMAL)
@@ -286,14 +286,17 @@ class GUI:
     
     def check_bot_mention(self, msg):
         """
-        检查消息中是否提及bot
-        支持 @bot, @chatbot, @Bot, @ChatBot 等格式
+        Check if the message mentions a bot
+        Supports formats such as @bot, @chatbot, @Bot, @ChatBot, etc.
+       
         """
         pattern = r'@(bot|chatbot)'
         return re.search(pattern, msg.lower()) is not None  
     def remove_bot_mention(self, msg):
         """
-        移除消息中的@bot标记，获取实际要处理的内容
+        Remove the @bot tag from the message 
+        to obtain the actual content to be processed.
+    
         """
         pattern = r'@(bot|chatbot)\s*'
         return re.sub(pattern, '', msg, flags=re.IGNORECASE).strip()    
@@ -306,12 +309,12 @@ class GUI:
         self.textCons.config(state=NORMAL)
         self.textCons.insert(END, "You: " + msg + "\n")
         # ------------ Add own message to chat history ------------
-# 过滤命令，例如 /summary /keywords
+        # Filter commands, such as /summary /keywords
         if not msg.startswith("/"):
             clean_msg = re.sub(r"\[[^\]]+\]$", "", msg).strip()
             if clean_msg:
                 self.chat_history.append(clean_msg)
-# ---------------------------------------------------------
+        # ---------------------------------------------------------
 
         self.textCons.config(state=DISABLED)
         self.textCons.see(END)   
@@ -319,19 +322,19 @@ class GUI:
 
         # ---------- NLP Commands ----------
         if msg.strip() == "/keywords":
-            # 原始关键词
+            # Original Keywords
             result = extract_keywords_yake(self.chat_history, top_k=10)
 
-            # 要过滤掉的垃圾关键词
+            # Junk keywords to filter out
             ban_list = {
                 "Request", "requested", "Connect", "connected", "connecting",
                 "chat", "you", "are", "with", "from", "to", "the"
             }
 
-            # 过滤垃圾词（lowercase 匹配）
+            # Filter out junk words (match lowercase)
             cleaned = [w for w in result if w.lower() not in ban_list]
 
-            # 如果删太多，至少保留前几个
+            # If delete too many, at least keep the first few.
             cleaned = cleaned[:5] if len(cleaned) > 0 else result[:5]
 
             self.textCons.config(state=NORMAL)
@@ -355,7 +358,7 @@ class GUI:
             self.my_msg = msg
             actual_msg = self.remove_bot_mention(msg)
             
-            # 获取bot回复
+            # Get bot response
             bot_reply = self.chatbot.get_response(actual_msg)
             
             self.textCons.config(state=NORMAL)
@@ -363,16 +366,16 @@ class GUI:
             self.textCons.config(state=DISABLED)
             self.textCons.see(END)
             
-            # 将bot回复广播给所有人
-            # 构造特殊格式的消息，让其他客户端也能显示bot回复
+            # Broadcast the bot's reply to everyone
+            # Construct specially formatted messages so other clients can display bot replies.
             def send_bot_reply():
                 import time
-                time.sleep(0.1)  # 短暂延迟，确保原始消息先处理
+                time.sleep(0.1)  # A brief delay ensures the original message is processed first.
                 broadcast_msg = f"🤖 Bot: {bot_reply}"
-                # 通过正常流程发送bot回复
+                # Send bot replies through the normal process
                 temp_msg = self.my_msg
                 self.my_msg = broadcast_msg
-                # 等待发送
+                # Waiting to send
                 time.sleep(0.05)
                 self.my_msg = temp_msg if temp_msg != msg else ""
             
@@ -396,22 +399,22 @@ class GUI:
 
     def on_player_score(self, score):
         """
-        将玩家的游戏分数发送到服务器
+        Send the player's game score to the server
         """
         try:
             print(f"Player {self.name} scored: {score}")
             
-            # 构造游戏分数消息
+            # Construct game score messages
             score_msg = json.dumps({
                 "action": "game_score",
                 "score": score,
-                "player": self.name  # 添加玩家名称
+                "player": self.name  # Add Player Name
             })
             
-            # 发送到服务器
+            # Send to server
             self.send(score_msg)
             
-            # 在聊天窗口显示本地提示
+            # Display local prompts in the chat window
             self.textCons.config(state=NORMAL)
             self.textCons.insert(END, f"【Game】You scored {score} points in Snake Game!\n\n")
             self.textCons.config(state=DISABLED)
@@ -419,7 +422,7 @@ class GUI:
             
         except Exception as e:
             print(f"Error sending score to server: {e}")
-            # 如果发送失败，至少显示本地消息
+            # If sending fails, display a local message at least.
             self.textCons.config(state=NORMAL)
             self.textCons.insert(END, f"【Game】You scored {score} points! (Not saved to server)\n\n")
             self.textCons.config(state=DISABLED)
@@ -428,9 +431,9 @@ class GUI:
 
     def request_leaderboard(self):
         self.client.send("GET_SNAKE_LEADERBOARD")
-        data = self.client.receive()   # 或 client.sock.recv()
+        data = self.client.receive()
 
-        # 转成 Python 对象
+        # transform in Python object
         import json
         leaderboard = json.loads(data)
 
@@ -439,20 +442,20 @@ class GUI:
    
     def open_leaderboard_window(self):
         """
-        直接打开排行榜窗口，使用本地存储的数据
+        Open the leaderboard window directly using locally stored data.
         """
         try:
-            # 如果本地有数据，直接显示
+            # If data is available locally, display it directly.
             if hasattr(self, 'leaderboard_data') and self.leaderboard_data:
                 self.show_leaderboard(self.leaderboard_data)
             else:
-                # 如果没有数据，显示空排行榜并请求数据
+                # If no data is available, display an empty leaderboard and request data.
                 self.show_leaderboard([])
-                # 同时请求最新数据
+                # Simultaneously request the latest data
                 leaderboard_msg = json.dumps({"action": "get_leaderboard"})
                 self.send(leaderboard_msg)
             
-            # 无论是否有数据，都显示提示
+            # Display the prompt regardless of whether data is available.
             self.textCons.config(state=NORMAL)
             self.textCons.insert(END, "【Ranking】Opening leaderboard...\n\n")
             self.textCons.config(state=DISABLED)
@@ -466,14 +469,14 @@ class GUI:
             self.textCons.see(END)
     
     def show_leaderboard(self, leaderboard_data):
-        """显示排行榜窗口"""
+        """Display the Leaderboard Window"""
         leaderboard_win = Toplevel(self.Window)
         leaderboard_win.title("Snake Game Leaderboard 🐍")
         leaderboard_win.geometry("400x500")
         leaderboard_win.configure(bg="#17202A")
         leaderboard_win.resizable(False, False)
         
-        # 标题
+        # titles
         title_label = Label(
             leaderboard_win,
             text="🐍 Snake Game Ranking 🐍",
@@ -483,11 +486,11 @@ class GUI:
         )
         title_label.pack(pady=15)
         
-        # 创建框架用于显示排行榜
+        # Create a framework for displaying leaderboards
         frame = Frame(leaderboard_win, bg="#2C3E50")
         frame.pack(pady=10, padx=20, fill=BOTH, expand=True)
         
-        # 表头
+        # headers
         header_frame = Frame(frame, bg="#34495E")
         header_frame.pack(fill=X)
         
@@ -503,7 +506,7 @@ class GUI:
             )
             label.grid(row=0, column=i, padx=0, pady=5, sticky="ew")
         
-        # 显示排行榜数据
+        # Display ranking data
         if not leaderboard_data:
             no_data_label = Label(
                 frame,
@@ -515,12 +518,12 @@ class GUI:
             )
             no_data_label.pack(pady=50)
         else:
-            # 显示前10名
+            # Show Top 10
             for idx, (player, score) in enumerate(leaderboard_data[:10], 1):
                 row_frame = Frame(frame, bg="#2C3E50" if idx % 2 == 1 else "#34495E")
                 row_frame.pack(fill=X, pady=2)
                 
-                # 排名
+                # ranking
                 rank_label = Label(
                     row_frame,
                     text=str(idx),
@@ -531,7 +534,7 @@ class GUI:
                 )
                 rank_label.grid(row=0, column=0, padx=2)
                 
-                # 玩家名称
+                # player names
                 player_label = Label(
                     row_frame,
                     text=player[:15],  # 限制长度
@@ -542,7 +545,7 @@ class GUI:
                 )
                 player_label.grid(row=0, column=1, padx=2)
                 
-                # 分数
+                # scores
                 score_label = Label(
                     row_frame,
                     text=str(score),
@@ -553,7 +556,7 @@ class GUI:
                 )
                 score_label.grid(row=0, column=2, padx=2)
                 
-                # 奖杯图标
+                # Trophy Icon
                 trophy = "🏆" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
                 trophy_label = Label(
                     row_frame,
@@ -565,7 +568,7 @@ class GUI:
                 )
                 trophy_label.grid(row=0, column=3, padx=2)
         
-        # 更新时间
+        # update time
         update_label = Label(
             leaderboard_win,
             text=f"Updated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
@@ -575,7 +578,7 @@ class GUI:
         )
         update_label.pack(pady=5)
         
-        # 刷新按钮
+        # refresh button
         refresh_button = Button(
             leaderboard_win,
             text="🔄 Refresh",
@@ -586,7 +589,7 @@ class GUI:
         )
         refresh_button.pack(pady=10, ipadx=20, ipady=5)
         
-        # 关闭按钮
+        # close button
         close_button = Button(
             leaderboard_win,
             text="Close",
@@ -598,10 +601,10 @@ class GUI:
         close_button.pack(pady=5, ipadx=30, ipady=3)    
 
     def refresh_leaderboard(self, window=None):
-        """刷新排行榜数据"""
+        """Refresh ranking data"""
         if window:
             window.destroy()
-        # 重新请求排行榜数据
+        # Request ranking data again
         leaderboard_msg = json.dumps({"action": "get_leaderboard"})
         self.send(leaderboard_msg)
 
@@ -621,25 +624,25 @@ class GUI:
                     
                     if msg_json.get("action") == "leaderboard":
                         leaderboard_data = msg_json.get("results", [])
-                        # 更新本地存储的排行榜数据
+                        # Update locally stored leaderboard data
                         self.leaderboard_data = leaderboard_data
                         
-                        # 可选：如果排行榜窗口已经打开，则更新其内容
+                        # Optional: If the leaderboard window is already open, update its contents.
                         if hasattr(self, 'current_leaderboard_window') and self.current_leaderboard_window.winfo_exists():
                             self.update_leaderboard_content(leaderboard_data)
                         
-                        continue  # 这是系统消息，不显示在聊天框
+                        continue  
 
                 except json.JSONDecodeError:
-                    pass  # 不是JSON格式的消息，继续正常处理
+                    pass  
             
             if len(self.my_msg) > 0 or len(peer_msg) > 0:
                 new_msg = self.sm.proc(self.my_msg, peer_msg)
                 self.my_msg = ""
 
-                # 处理接收到的消息 - 只对别人的消息进行情感分析
+                # Processing Received Messages - Performing Sentiment Analysis Only on Others' Messages
                 if new_msg.strip() and self.sentiment_mode:
-                    if not new_msg.startswith("【"):  # 跳过系统消息
+                    if not new_msg.startswith("【"):  # Skip system messages
                         lines = new_msg.split('\n')
                         processed = []
 
@@ -648,13 +651,13 @@ class GUI:
                             if not line:
                                 continue
 
-                            # ---- 方括号格式，如 [A]你好呀 ----
+                            # ----Square bracket format, such as [A] Hello there ----
                             if line.startswith("[") and "]" in line:
                                 end = line.find("]")
                                 sender = line[1:end]
                                 message = line[end+1:].strip()
 
-                                # 只分析别人，不分析系统，不分析自己
+                                # Analyzing others, not the system, not oneself
                                 if sender != self.name and sender != "🤖":
                                     label, emoji = analyze_sentiment(message)
                                     processed.append(f"[{sender}]{message} [{label} {emoji}]")
@@ -668,7 +671,7 @@ class GUI:
 
 
                 self.textCons.config(state=NORMAL)
-                # 记录聊天记录（只存纯文本）
+                # Record chat history (store plain text only)
                 # ------------ Clean chat history logging ------------
                 clean_lines = []
 
@@ -677,19 +680,19 @@ class GUI:
                     if not line:
                         continue
 
-                    # 例子: [A]你好呀 → 去掉 sender，只留消息
+                    # Example: [A] Hi → Remove the sender, leaving only the message
                     if line.startswith("[") and "]" in line:
                         end = line.find("]")
                         msg = line[end+1:].strip()
 
-                        # 去掉可能的 sentiment 标签 "[Positive 😊]"
+                        # Remove possible sentiment tag "[Positive 😊]"
                         msg = re.sub(r"\[[^\]]+\]$", "", msg).strip()
 
-                        # 只要 msg 有内容就记录
+                        # Record msg whenever it contains content.
                         if msg:
                             clean_lines.append(msg)
                     else:
-                        # 对于其他消息（例如系统消息），不处理
+                        # For other messages (such as system messages), no processing is performed.
                         clean_lines.append(line)
 
                 self.chat_history.extend(clean_lines)
@@ -700,7 +703,7 @@ class GUI:
                 self.textCons.config(state=DISABLED)
                 self.textCons.see(END)
 
-                        # ★★★ fix: 清空 system_msg
+                        # ★★★ fix: clear system_msg
                 self.system_msg = ""
 
 
@@ -751,11 +754,11 @@ class GUI:
         self.textCons.config(state=NORMAL)
         if self.chatbot_mode:
             self.textCons.insert(END, "【ChatBot Mode Start】\n\n")
-            # 改变按钮颜色和文字，让用户知道Bot已开启
+            # Change the button color and text to let users know the bot is active.
             self.buttonBot.config(bg="#4CAF50", text="Bot: ON")
         else:
             self.textCons.insert(END, "【ChatBot Mode End】\n\n")
-            # 恢复按钮原始状态
+            # Restore the button to its original state
             self.buttonBot.config(bg="#445566", text="Bot: OFF")
         self.textCons.config(state=DISABLED)
         self.textCons.see(END)
@@ -771,7 +774,7 @@ class GUI:
             bg="#17202A", fg="white",
             font="Helvetica 12 bold").pack(pady=10)
         
-        # 获取可用人格选项
+        # Obtain available personality options
         personalities = self.chatbot.get_personality_options()
         
         for personality in personalities:
@@ -786,7 +789,7 @@ class GUI:
 
     def select_personality(self, personality, window):
         if self.chatbot.set_personality(personality):
-            # 在聊天窗口显示人格切换信息
+            # Display character switching information in the chat window
             self.textCons.config(state=NORMAL)
             self.textCons.insert(END, f"【ChatBot personality changed to: {personality}】\n\n")
             self.textCons.config(state=DISABLED)

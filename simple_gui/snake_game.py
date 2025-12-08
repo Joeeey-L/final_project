@@ -14,9 +14,7 @@ BG_COLOR = "#000000"
 
 class SnakeGame:
     def __init__(self, master, send_score_callback=None):
-        """
-        master: 父窗口，通常是 GUI.Window
-        """
+
         self.gamewin = Toplevel(master)
         self.gamewin.title("Snake Game")
         self.gamewin.resizable(False, False)

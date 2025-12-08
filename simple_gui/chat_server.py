@@ -123,10 +123,10 @@ class Server:
             elif msg["action"] == "get_leaderboard":
                 from_name = self.logged_sock2name[from_sock]
                 
-                # 排序排行榜（按分数降序）
+                # Ranking Chart (Sorted by Score in Descending Order)
                 sorted_board = sorted(self.leaderboard.items(), key=lambda x: x[1], reverse=True)
                 
-                # 发送给请求的客户端
+                #  Sent to the requesting client
                 mysend(from_sock, json.dumps({
                     "action": "leaderboard",
                     "results": sorted_board
